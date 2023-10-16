@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AIML Chatbot with Spelling Tolerance</title>
+    <style>
+        /* Chatbox styles */
+        .chatbox {
+            width: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 20px auto;
+        }
+
+        .user-message {
+            background-color: #f2f2f2;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .bot-message {
+            background-color: #d9f0ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbox">
+        <div class="bot-message">Bot: Hello! How can I assist you today?</div>
+    </div>
+    <input type="text" id="userInput" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script src="fuzzyset.js"></script>
+    <script>
+        // Sample AIML content embedded in the HTML
+        const aimlContent = `
+            <aimlPatterns>
+                <pattern>HELLO</pattern>
+                <template>Hi there!</template>
+                <pattern>HOW ARE YOU</pattern>
+                <template>I'm just a computer program, but I'm doing fine. How can I help you?</template>
+                <!-- Add more patterns and templates here -->
+            </aimlPatterns>
+        `;
+
+        // Parse AIML content and create aimlPatterns dynamically
+        const aimlPatterns = [];
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(aimlContent, "text/xml");
+        const patternElements = xmlDoc.getElementsByTagName("pattern");
+        const templateElements = xmlDoc.getElementsByTagName("template");
+
+        for (let i = 0; i < patternElements.length; i++) {
+            const pattern = patternElements[i].textContent;
+            const template = templateElements[i].textContent;
+            aimlPatterns.push({ pattern, template });
+        }
+
+        // Create a fuzzyset from AIML patterns for spelling tolerance
+        const fuzzyPatterns = FuzzySet(aimlPatterns.map(patternObj => patternObj.pattern));
+
+        // Function to match user input to AIML patterns with spelling tolerance
+        function interpretAIML(userInput) {
+            userInput = userInput.toUpperCase(); // Convert input to uppercase for case-insensitive matching
+
+            // Use the fuzzyset to find the closest match
+            const matchedPattern = fuzzyPatterns.get(userInput, null, 0.5); // Adjust the threshold as needed
+
+            if (matchedPattern) {
+                for (const patternObj of aimlPatterns) {
+                    if (patternObj.pattern === matchedPattern[0][1]) {
+                        return patternObj.template;
+                    }
+                }
+            }
+            return "I'm sorry, I don't understand that.";
+        }
+
+        // Function to send a user message and display a bot response
+        function sendMessage() {
+            const userInput = document.getElementById("userInput").value;
+            const chatbox = document.querySelector(".chatbox");
+            const userMessageDiv = document.createElement("div");
+            userMessageDiv.className = "user-message";
+            userMessageDiv.textContent = `You: ${userInput}`;
+            chatbox.appendChild(userMessageDiv);
+
+            const botResponse = interpretAIML(userInput);
+            const botMessageDiv = document.createElement("div");
+            botMessageDiv.className = "bot-message";
+            botMessageDiv.textContent = `Bot: ${botResponse}`;
+            chatbox.appendChild(botMessageDiv);
+
+            // Clear the input field
+            document.getElementById("userInput").value = "";
+        }
+    </script>
+</body>
+</html>
